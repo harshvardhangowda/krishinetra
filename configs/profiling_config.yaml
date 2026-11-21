@@ -1,0 +1,31 @@
+# ==============================================================================
+# Krishnetra Aavishkar: Edge AI Benchmarking & Profiling Configuration
+# File: configs/profiling_config.yaml
+# Description: Configuration for stream ingestion, latency profiling, and ONNX comparison.
+# ==============================================================================
+
+stream:
+  default_source: "synthetic"     # "synthetic", "tests/data/sample_pest_clip.mp4", or path to local video
+  frame_width_px: 640
+  frame_height_px: 480
+  fps_target: 30
+  loop: false
+  allow_camera: false             # Safety constraint: Physical camera disabled by default
+  fallback_synthetic: true        # If file or camera missing, activate safe synthetic generator
+
+profiling:
+  warmup_frames: 3                # Number of initial frames excluded from latency aggregates
+  benchmark_frames: 20            # Number of frames to profile during standard benchmark runs
+  percentiles: [50, 95]           # Median and p95 latency tracking
+
+models:
+  pytorch_weights: "models/pest_yolov8n_best.pt"
+  onnx_weights: "models/pest_yolov8n_best.onnx"
+  device: "cpu"
+  confidence_threshold: 0.35
+
+safety:
+  simulation_mode: true           # Hardware actuation disabled
+  telemetry_type: "SIMULATED"
+  hardware_actuators: "DISABLED"
+  disclaimer: "Desktop benchmark values do not represent Raspberry Pi 4 edge performance."

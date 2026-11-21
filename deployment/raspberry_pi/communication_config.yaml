@@ -1,0 +1,37 @@
+# ==============================================================================
+# Krishnetra Aavishkar - Edge AI <-> ESP32 Communication Configuration
+# File: deployment/raspberry_pi/communication_config.yaml
+# ==============================================================================
+
+system:
+  node_id: "RPI4_EDGE_01"
+  model_version: "pest_yolov8n_best"
+  environment: "simulation" # "simulation" or "production"
+
+safety:
+  master_safety_state: "LOCKED"       # LOCKED: All physical actions prohibited
+  default_decision: "NO_ACTION"
+  default_action: "NONE"
+  min_confidence_cutoff: 0.60
+  actuator_hardware_enabled: false   # MUST REMAIN FALSE (Physical Actuation Disabled)
+
+mqtt:
+  broker_host: "localhost"
+  broker_port: 1883
+  client_id: "krishnetra_rpi4_edge"
+  keepalive_sec: 60
+  topics:
+    commands: "krishnetra/edge/commands"
+    ack: "krishnetra/esp32/ack"
+    heartbeat: "krishnetra/esp32/heartbeat"
+    system_status: "krishnetra/system/status"
+
+serial_fallback:
+  port: "/dev/ttyUSB0"
+  baudrate: 115200
+  timeout_sec: 1.0
+
+heartbeat:
+  interval_sec: 2.0
+  timeout_threshold_sec: 5.0
+  max_consecutive_misses: 3

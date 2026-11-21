@@ -1,0 +1,1 @@
+{"timestamp": "2026-10-07T13:30:00Z", "frame_id": 10, "model_type": "BASELINE COCO MODEL", "inference_latency_ms": 15.2, "decision": {"decision": "NO_ACTION", "reason": "BASELINE_OBSERVATION"}, "detections": [{"class_id": 0, "class_name": "person", "confidence": 0.85, "bbox": [10, 20, 100, 200]}]}

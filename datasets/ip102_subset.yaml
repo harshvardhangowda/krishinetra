@@ -1,0 +1,20 @@
+# Krishnetra Aavishkar - Ultralytics YOLO Dataset Configuration
+# Target 3-Class Pest Subset from IP102 Benchmark
+# Compatible with Ultralytics YOLOv8 / YOLOv11
+
+# Dataset root directory (relative to project root or absolute path)
+path: datasets/ip102_subset
+
+# Subdirectories for splits
+train: images/train
+val: images/val
+test: images/test
+
+# Number of classes
+nc: 3
+
+# Target Pest Class Names
+names:
+  0: army worm
+  1: blister beetle
+  2: corn borer

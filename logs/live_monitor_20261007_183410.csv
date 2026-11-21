@@ -1,0 +1,1 @@
+timestamp,frame_id,model_type,class_id,class_name,confidence,bbox_x1,bbox_y1,bbox_x2,bbox_y2,decision,decision_reason,inference_latency_ms

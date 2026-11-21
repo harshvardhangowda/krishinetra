@@ -1,0 +1,30 @@
+# ==============================================================================
+# Krishnetra Aavishkar: Visual Servoing & Pest Centering Configuration
+# File: configs/servoing_config.yaml
+# Description: Parameters for closed-loop visual alignment and target centering.
+# ==============================================================================
+
+camera:
+  frame_width_px: 640
+  frame_height_px: 480
+  horizontal_fov_degrees: 60.0
+  vertical_fov_degrees: 45.0
+
+centering:
+  dead_zone_x: 0.05               # Normalized tolerance (+/- 5% of half-width, ~16 pixels)
+  dead_zone_y: 0.05               # Normalized tolerance (+/- 5% of half-height, ~12 pixels)
+  min_confidence: 0.60            # Minimum detection confidence threshold
+  target_selection_policy: "HIGHEST_CONFIDENCE" # "HIGHEST_CONFIDENCE", "CLOSEST_TO_CENTER", "LARGEST_BBOX_AREA"
+  
+control_gains:
+  k_p_angular: 0.80               # Proportional gain for heading rotation
+  k_p_linear: 0.40                # Proportional gain for distance / forward tracking
+  min_angular_speed_rad_s: 0.08   # Minimum command deadband to overcome static friction
+  max_angular_speed_rad_s: 0.80   # Safe angular velocity ceiling during servoing
+  max_linear_speed_m_s: 0.25      # Safe linear velocity ceiling during servoing
+
+simulation:
+  simulation_mode: true           # MUST BE TRUE: Physical actuation disabled
+  max_iterations: 50              # Guard against infinite servoing loops
+  time_step_sec: 0.10             # Simulation loop period (10 Hz update)
+  convergence_threshold_x: 0.05   # Target reached threshold

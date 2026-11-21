@@ -1,0 +1,53 @@
+# Target Pest Configuration - Milestone 4
+# Approved 3 Target Pests from IP102 Benchmark Dataset
+# Target -> Identify -> Decide -> Target -> Monitor
+
+target_classes:
+  - name: "army worm"
+    ip102_id: 24
+    yolo_id: 0
+    common_names:
+      - "Fall Armyworm"
+      - "Spodoptera frugiperda"
+      - "Spodoptera litura"
+    target_crops:
+      - "Maize"
+      - "Cotton"
+      - "Soybean"
+
+  - name: "blister beetle"
+    ip102_id: 52
+    yolo_id: 1
+    common_names:
+      - "Mylabris phalerata"
+      - "Blister beetle"
+    target_crops:
+      - "Pigeonpea (Tur)"
+      - "Mung bean"
+      - "Urad"
+
+  - name: "corn borer"
+    ip102_id: 23
+    yolo_id: 2
+    common_names:
+      - "Spotted stem borer"
+      - "Chilo partellus"
+    target_crops:
+      - "Maize"
+      - "Sorghum (Jowar)"
+
+# Beneficial insects that must never be targeted by deterrence mechanisms
+beneficial_classes:
+  - name: "honey bee"
+    common_names: ["Apis cerana", "Apis mellifera"]
+  - name: "ladybug"
+    common_names: ["Ladybird beetle", "Coccinellidae"]
+  - name: "earthworm"
+    common_names: ["Lumbricina"]
+
+# Mapping dictionary for quick script lookups
+class_mapping:
+  # IP102 ID -> YOLO ID
+  24: 0
+  52: 1
+  23: 2

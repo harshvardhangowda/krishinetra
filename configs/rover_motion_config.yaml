@@ -1,0 +1,35 @@
+# ==============================================================================
+# Krishnetra Aavishkar: Autonomous Mobile Rover Motion Configuration
+# File: configs/rover_motion_config.yaml
+# Description: Configuration for mecanum and differential drive kinematics,
+#              safety limits, command timeouts, and simulation parameters.
+# ==============================================================================
+
+rover:
+  robot_id: "krishnetra_rover_01"
+  drive_configuration: "MECANUM" # "MECANUM" or "DIFFERENTIAL"
+  simulation_mode: true          # MUST BE TRUE: Physical actuation disabled
+
+geometry:
+  track_width_meters: 0.280      # Distance between left and right wheel contact patches
+  wheel_base_meters: 0.250       # Distance between front and rear wheel axles
+  wheel_radius_meters: 0.040     # Mecanum wheel radius (80mm diameter)
+
+safety_limits:
+  max_linear_speed_m_s: 0.50     # Strict ceiling on linear travel speed
+  max_angular_speed_rad_s: 1.20  # Strict ceiling on rotational angular speed
+  default_linear_speed_m_s: 0.20 # Nominal travel speed
+  default_angular_speed_rad_s: 0.50 # Nominal rotational speed
+  command_timeout_sec: 1.50      # Watchdog timeout: rover auto-stops if no command within 1.5s
+  emergency_stop_deceleration_m_s2: 5.0 # E-stop deceleration rate
+  lock_on_heartbeat_loss: true   # Auto-lock on link interruption
+
+kinematics:
+  mecanum:
+    front_left_wheel_index: 0
+    front_right_wheel_index: 1
+    rear_left_wheel_index: 2
+    rear_right_wheel_index: 3
+  differential:
+    left_wheel_index: 0
+    right_wheel_index: 1

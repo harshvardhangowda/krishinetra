@@ -1,0 +1,36 @@
+# ==============================================================================
+# Krishnetra Aavishkar: Multi-Frame Target Tracking Configuration
+# File: configs/tracking_config.yaml
+# Description: Configuration for IoU association, track persistence, and temporal occlusion handling.
+# ==============================================================================
+
+camera:
+  frame_width_px: 640
+  frame_height_px: 480
+  horizontal_fov_degrees: 60.0
+
+tracker:
+  max_missed_frames: 5            # Number of frames to preserve track during occlusion
+  min_hits_to_confirm: 1          # Number of hits required to confirm track
+  min_detection_confidence: 0.60  # Minimum confidence to accept a detection
+  iou_threshold: 0.25             # Minimum bounding box IoU for association
+  max_centroid_distance_px: 120.0 # Maximum centroid displacement for association
+  weight_iou: 0.60                # Weight for IoU overlap in association
+  weight_distance: 0.30           # Weight for normalized distance affinity
+  weight_confidence: 0.10         # Weight for confidence matching
+  velocity_damping: 0.80          # Damping factor for predicted velocity during occlusion
+  confidence_decay: 0.85          # Confidence decay per missed frame
+  velocity_smoothing: 0.40        # Exponential moving average factor for velocity
+  strict_class_matching: true     # Prohibit cross-class target association
+
+persistence:
+  policy: "PERSISTENT_LOCK"       # "PERSISTENT_LOCK", "HIGHEST_CONFIDENCE", "CLOSEST_TO_CENTER", "LARGEST_BBOX_AREA"
+  fallback_policy: "HIGHEST_CONFIDENCE"
+  allow_predicted_servoing: false # When target is occluded, hold at STOP for safety
+  max_predicted_servoing_frames: 0 # Max frames to allow predicted alignment commands (0 = safe hold)
+
+safety:
+  simulation_mode: true           # Hardware actuators remain permanently DISABLED
+  prohibit_physical_actuation: true
+  telemetry_type: "SIMULATED"
+  hardware_actuators: "DISABLED"

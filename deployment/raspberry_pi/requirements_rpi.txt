@@ -1,0 +1,9 @@
+# Raspberry Pi 4 Edge Deployment Dependencies (ARM64 / Linux)
+# Lightweight inference dependencies without full PyTorch desktop overhead
+
+opencv-python-headless>=4.8.0
+onnxruntime>=1.16.0
+numpy>=1.24.0
+pyyaml>=6.0
+psycopg2-binary>=2.9.0
+ultralytics>=8.0.0

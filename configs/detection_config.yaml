@@ -1,0 +1,18 @@
+# AI Detection Module Configuration
+
+model:
+  # Initial baseline model for environment verification (YOLOv8 nano is lightweight and edge-ready)
+  weights: "yolov8n.pt"
+  # Target pest model path (to be populated after Milestone 4 training)
+  custom_weights: "models/pest_detector_best.pt"
+  device: "cpu"  # Will dynamically use 'cuda' if GPU is available and configured
+  imgsz: 640
+
+detection:
+  # Initial confidence threshold (to be calibrated via validation evaluation)
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+
+output:
+  save_annotated_image: true
+  output_dir: "runs/detect"

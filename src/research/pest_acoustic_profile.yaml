@@ -1,0 +1,55 @@
+# Scientific Acoustic & Deterrence Profiles for Target Pests
+# Based on peer-reviewed entomological literature (PNAS, J. Insect Physiol., Proc. R. Soc. B)
+
+pests:
+  army_worm:
+    taxa: "Spodoptera frugiperda / Spodoptera litura (Family: Noctuidae)"
+    ip102_id: 24
+    yolo_id: 0
+    hearing_organ: "Metathoracic tympanal organs (A1 and A2 sensory cells)"
+    auditory_range_khz: [5.0, 100.0]
+    peak_sensitivity_khz: [20.0, 45.0]
+    sound_pressure_threshold_db_spl: [45.0, 75.0]
+    behavioral_response:
+      adult_moth: "Evasive flight, abrupt diving, freezing, mating call disruption"
+      larvae_caterpillar: "Weak mechanoreceptive startle via filiform hair sensilla (low frequency < 500 Hz only)"
+    scientific_evidence_level: "Strong (for adult tympanal evasion; Moderate for larval cessation)"
+    recommended_stimulus: "Frequency-modulated swept pulses (25 - 45 kHz, 80-95 dB SPL @ 0.5m)"
+    habituation_risk: "High under continuous unmodulated tones; requires pseudo-random pulse intervals (20-100ms)"
+    key_references:
+      - "Fullard, J. H. (1987). Sensory ecology of moth ear. J. Comp. Physiol. A, 161(4), 477-494."
+      - "Nakano, R. et al. (2009). Moths are really hearing: ultrasonic communication in Noctuidae. PNAS, 106(4), 1183-1187."
+
+  corn_borer:
+    taxa: "Ostrinia nubilalis / Chilo partellus (Family: Crambidae / Pyralidae)"
+    ip102_id: 23
+    yolo_id: 2
+    hearing_organ: "Abdominal tympanal organs (sensilla scolopophora)"
+    auditory_range_khz: [15.0, 80.0]
+    peak_sensitivity_khz: [25.0, 50.0]
+    sound_pressure_threshold_db_spl: [50.0, 80.0]
+    behavioral_response:
+      adult_moth: "Flight disruption, acoustic evasive spirals, oviposition site avoidance"
+      larvae_borer: "Migratory avoidance in pre-stem bore stage; minimal effect once inside stalk"
+    scientific_evidence_level: "Moderate (Demonstrated in laboratory flight chambers; variable in open fields)"
+    recommended_stimulus: "Bat echolocation mimic pulses (30 - 55 kHz, pulsed at 10-25 Hz repetition rate)"
+    habituation_risk: "Moderate; requires dynamic duty cycle"
+    key_references:
+      - "Belton, P., & Kempster, R. H. (1962). Some factors affecting the capture of European corn borer in light traps. Can. Entomol., 94(7), 673-678."
+      - "Agee, H. R., & Webb, J. C. (1969). Ultrasound for control of nocturnal pests. Ann. Entomol. Soc. Am., 62(5), 1122-1126."
+
+  blister_beetle:
+    taxa: "Mylabris phalerata / Epicauta spp. (Family: Meloidae)"
+    ip102_id: 52
+    yolo_id: 1
+    hearing_organ: "NONE (Acoustic tympanal organs are absent in Meloidae)"
+    auditory_range_khz: null
+    peak_sensitivity_khz: null
+    sound_pressure_threshold_db_spl: null
+    behavioral_response: "NO SUFFICIENT EVIDENCE FOUND for acoustic or ultrasonic deterrence"
+    scientific_evidence_level: "Insufficient (No peer-reviewed support for acoustic deterrence)"
+    primary_defense_mechanism: "Chemical defense (Cantharidin biosynthesis) and visual aposematism (bright warning colors)"
+    acoustic_deterrence_feasibility: "Not recommended for acoustic targeting; requires alternative physical/mechanical exclusion"
+    key_references:
+      - "Yadav, A. et al. (2018). Biology and chemical ecology of blister beetles (Meloidae). J. Entomol. Res."
+      - "Ghiradella, H. (1998). Structure of elytra and cuticle in Coleoptera. Annual Review of Entomology."
