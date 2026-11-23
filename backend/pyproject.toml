@@ -1,0 +1,28 @@
+[project]
+name = "krishnetra-backend"
+version = "0.1.0"
+description = "Production FastAPI Platform for KrishiNetra Precision Pest Management & Rover Control"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy>=2.0.36",
+    "aiosqlite>=0.20.0",
+    "alembic>=1.14.0",
+    "bcrypt>=4.2.0",
+    "passlib>=1.7.4",
+    "email-validator>=2.2.0",
+    "python-multipart>=0.0.18",
+    "uvicorn>=0.32.0",
+    "websockets>=13.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

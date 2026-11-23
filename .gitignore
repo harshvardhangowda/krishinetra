@@ -51,6 +51,11 @@ datasets/processed/
 Untitled*
 practical.py
 
+# Database & Runtime Data
+*.db
+*.sqlite3
+data/
+
 # IDE & Editor
 .vscode/
 .idea/
