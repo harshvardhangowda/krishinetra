@@ -14,6 +14,7 @@ from backend.app.infrastructure.db.models import (
     InspectionFrame,
     Detection,
     HumanReview,
+    Rover,
     User,
     UserRole,
     InspectionStatus,
@@ -31,7 +32,25 @@ async def create_inspection_session(
     title: str,
     field_location: str,
 ) -> InspectionSession:
-    """Create a new field inspection session for pest monitoring."""
+    """
+    Create a new field inspection session for pest monitoring.
+    Strictly verifies rover ownership within user's organization (KN-10).
+    """
+    # Verify rover exists within user's organization
+    rover_stmt = select(Rover).where(
+        and_(
+            Rover.id == rover_id,
+            Rover.organization_id == user.organization_id,
+        )
+    )
+    rover_res = await db.execute(rover_stmt)
+    rover = rover_res.scalar_one_or_none()
+    if not rover:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rover {rover_id} not found in your organization.",
+        )
+
     session = InspectionSession(
         rover_id=rover_id,
         organization_id=user.organization_id,

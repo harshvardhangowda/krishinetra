@@ -4,10 +4,10 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./krishnetra_backend.db
-      - SECRET_KEY=production-secret-key-change-me
+      - SECRET_KEY=${SECRET_KEY:-krishinetra-secure-production-random-token}
     volumes:
       - media_data:/app/data/media_evidence
 

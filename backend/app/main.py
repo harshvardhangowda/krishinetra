@@ -11,21 +11,13 @@ from sqlalchemy import text
 from backend.app.core.config import settings
 from backend.app.core.database import engine, AsyncSessionLocal
 from backend.app.infrastructure.db.base import Base
-from backend.app.infrastructure.db.models import (
-    Organization,
-    User,
-    Rover,
-    UserRole,
-    RoverStatus,
-)
-from backend.app.core.security import hash_password
 from backend.app.api.v1.router import api_v1_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and graceful shutdown lifecycle."""
-    # Ensure all relational database tables exist
+    # Ensure database schema is initialized
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -77,13 +69,13 @@ async def health_liveness():
 
 @app.get("/health/ready", tags=["Health"])
 async def health_readiness():
-    """Readiness probe: validates active database connectivity."""
+    """Readiness probe: validates active database connectivity with sanitized errors (KN-14)."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         return {"status": "READY", "database": "CONNECTED"}
-    except Exception as exc:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database unreachable: {str(exc)}",
+            detail="Database connectivity unavailable.",
         )

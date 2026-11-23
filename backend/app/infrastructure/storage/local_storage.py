@@ -13,23 +13,31 @@ class LocalStorageProvider:
     """Manages disk-based private media storage with SHA-256 verification."""
 
     def __init__(self, root_dir: str = settings.MEDIA_STORAGE_PATH):
-        self.root = Path(root_dir)
+        self.root = Path(root_dir).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
     def save_file(self, folder: str, filename: str, content: bytes) -> Tuple[str, str]:
-        """Save file bytes and return (relative_path, sha256_hash)."""
+        """Save file bytes and return (relative_path, sha256_hash). Enforces path containment (KN-16)."""
         sha256 = compute_sha256(content)
-        target_dir = self.root / folder
-        target_dir.mkdir(parents=True, exist_ok=True)
+        safe_folder = Path(folder).name
+        safe_filename = Path(filename).name
 
-        target_file = target_dir / filename
+        target_dir = (self.root / safe_folder).resolve()
+        if not str(target_dir).startswith(str(self.root)):
+            raise ValueError("Path traversal detected in folder path.")
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_file = target_dir / safe_filename
         target_file.write_bytes(content)
 
         rel_path = str(target_file.relative_to(self.root.parent))
         return rel_path, sha256
 
     def read_file(self, rel_path: str) -> bytes:
-        full_path = self.root.parent / rel_path
+        """Read media asset with path containment validation."""
+        full_path = (self.root.parent / rel_path).resolve()
+        if not str(full_path).startswith(str(self.root.parent.resolve())):
+            raise ValueError("Path traversal detected in asset read path.")
         if not full_path.exists():
             raise FileNotFoundError(f"Media asset at {rel_path} does not exist.")
         return full_path.read_bytes()

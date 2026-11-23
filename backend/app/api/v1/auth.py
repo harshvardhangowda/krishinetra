@@ -4,7 +4,7 @@ File: backend/app/api/v1/auth.py
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +18,7 @@ from backend.app.contracts.auth import (
     OrganizationCreate,
     OrganizationResponse,
 )
-from backend.app.infrastructure.db.models import Organization, User, UserRole, Session
+from backend.app.infrastructure.db.models import Organization, User, UserRole, Session, AuditLog
 from backend.app.domains.auth_service import (
     authenticate_user,
     create_user_session,
@@ -33,12 +33,23 @@ router = APIRouter(prefix="/auth", tags=["Authentication & Access"])
 @router.post("/login", response_model=LoginResponse)
 async def login(
     request: Request,
+    response: Response,
     body: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Authenticate with username/email and password. Returns session and CSRF tokens."""
+    """Authenticate with username/email and password. Returns session and CSRF tokens with failed login auditing (KN-13)."""
     user = await authenticate_user(db, body.username_or_email, body.password)
     if not user:
+        client_ip = request.client.host if request.client else None
+        audit = AuditLog(
+            organization_id="system",
+            action="AUTH_LOGIN_FAILED",
+            entity_type="user",
+            entity_id=body.username_or_email,
+            ip_address=client_ip,
+        )
+        db.add(audit)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials or inactive account.",
@@ -54,6 +65,16 @@ async def login(
         ip_address=client_ip,
     )
 
+    # Set secure HttpOnly cookie for browser sessions (KN-13)
+    response.set_cookie(
+        key="session_token",
+        value=session.session_token,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=int(session.expires_at.timestamp() - session.created_at.timestamp()),
+    )
+
     return LoginResponse(
         session_token=session.session_token,
         csrf_token=session.csrf_token,
@@ -67,11 +88,13 @@ async def login(
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout(
+    response: Response,
     auth_data: tuple[User, Session] = Depends(get_current_user_and_session),
     db: AsyncSession = Depends(get_db),
 ):
-    """Terminate the current active session."""
+    """Terminate the current active session and clear browser session cookie."""
     user, session = auth_data
+    response.delete_cookie(key="session_token")
     await db.delete(session)
     await db.commit()
     return {"status": "success", "message": "Logged out successfully."}

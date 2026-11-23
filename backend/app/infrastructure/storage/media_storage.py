@@ -13,7 +13,7 @@ class MediaStorageService:
     """Manages raw inspection frames with SHA-256 tamper-evident integrity."""
 
     def __init__(self, base_dir: str = settings.MEDIA_STORAGE_PATH) -> None:
-        self.base_dir = Path(base_dir)
+        self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def store_frame(
@@ -25,9 +25,18 @@ class MediaStorageService:
     ) -> Tuple[str, str]:
         """
         Save frame to disk and return (relative_storage_path, sha256_hash).
+        Enforces path containment to prevent directory traversal (KN-16).
         """
         sha256_hash = compute_sha256(image_bytes)
-        session_dir = self.base_dir / session_id
+
+        # Sanitize session_id to pure filename/directory component
+        safe_session_id = Path(session_id).name
+        session_dir = (self.base_dir / safe_session_id).resolve()
+
+        # Path traversal guard
+        if not str(session_dir).startswith(str(self.base_dir)):
+            raise ValueError("Path traversal attempt detected in session_id.")
+
         session_dir.mkdir(parents=True, exist_ok=True)
 
         filename = f"frame_{frame_index:06d}_{sha256_hash[:12]}.{extension}"

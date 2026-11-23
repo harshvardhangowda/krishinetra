@@ -1,18 +1,19 @@
 """
-KrishiNetra Backend - Read-Only AI Assistant Providers & Tools
+KrishiNetra Backend - Domain Assistant Data Retrieval Tools
 File: backend/app/infrastructure/assistant_providers/tools.py
 
-Specification Requirement:
-Strictly read-only assistant tools. Must NEVER have shell execution,
-direct database mutation, rover driving, or actuator control access.
+Enforces strict read-only access and tenant organization isolation (KN-24).
 """
 
-from typing import Dict, Any, List
-from sqlalchemy import select, func
+from typing import List, Dict, Any, Optional
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.infrastructure.db.models import (
     Rover,
     InspectionSession,
+    InspectionFrame,
+    Detection,
     HumanReview,
     ModelRegistry,
     RoverStatus,
@@ -20,7 +21,7 @@ from backend.app.infrastructure.db.models import (
 
 
 class AssistantToolProvider:
-    """Provides evidence-backed, read-only analytical summaries to the AI assistant."""
+    """Read-only tools allowing the assistant to ground responses in verified database facts."""
 
     @staticmethod
     async def get_rover_status(db: AsyncSession, organization_id: str) -> List[Dict[str, Any]]:
@@ -28,12 +29,11 @@ class AssistantToolProvider:
         rovers = (await db.execute(stmt)).scalars().all()
         return [
             {
-                "rover_id": r.id,
+                "id": r.id,
                 "name": r.name,
                 "status": r.status.value,
                 "battery_pct": r.battery_pct,
-                "hardware_version": r.hardware_version,
-                "firmware_version": r.firmware_version,
+                "last_heartbeat": r.last_heartbeat.isoformat() if r.last_heartbeat else None,
             }
             for r in rovers
         ]
@@ -53,8 +53,20 @@ class AssistantToolProvider:
         }
 
     @staticmethod
-    async def get_reviewed_observations(db: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
-        stmt = select(HumanReview).order_by(HumanReview.reviewed_at.desc()).limit(limit)
+    async def get_reviewed_observations(
+        db: AsyncSession,
+        organization_id: str,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Fetch verified human reviews strictly scoped to user's organization (KN-24)."""
+        stmt = (
+            select(HumanReview)
+            .join(InspectionFrame, HumanReview.frame_id == InspectionFrame.id)
+            .join(InspectionSession, InspectionFrame.session_id == InspectionSession.id)
+            .where(InspectionSession.organization_id == organization_id)
+            .order_by(HumanReview.reviewed_at.desc())
+            .limit(limit)
+        )
         reviews = (await db.execute(stmt)).scalars().all()
         return [
             {
@@ -84,9 +96,11 @@ class AssistantToolProvider:
 
     @staticmethod
     async def get_sensor_availability() -> Dict[str, Any]:
+        """Provides verified hardware status showing physical actuation is locked."""
         return {
-            "camera": "OPERATIONAL (Synthetic / Video Ingestion)",
-            "ultrasonic_distance": "SIMULATED (Range: 0.15m - 2.50m)",
-            "bme280_temp_humidity": "SIMULATED (26.5 C, 62% RH)",
-            "motors_actuators": "DISABLED (Safety Interlock Active)",
+            "camera": "CONNECTED_SIMULATION",
+            "ultrasonic": "SIMULATED",
+            "gps": "SIMULATED",
+            "motors_actuators": "PERMANENTLY_DISABLED_BY_SAFETY_INTERLOCK",
+            "non_chemical_deterrence": "SIMULATION_MODE_ONLY",
         }

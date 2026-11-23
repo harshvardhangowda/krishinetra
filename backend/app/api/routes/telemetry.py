@@ -5,7 +5,7 @@ File: backend/app/api/routes/telemetry.py
 
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_db
@@ -34,7 +34,7 @@ async def get_latest_telemetry(
     stmt = select(Rover).where(Rover.id == rover_id, Rover.organization_id == current_user.organization_id)
     rover = (await db.execute(stmt)).scalar_one_or_none()
     if not rover:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rover not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rover not found in your organization.")
 
     # Honest sensor collection: poll sensor HAL if available
     sensor_readings = []
@@ -59,11 +59,29 @@ async def get_latest_telemetry(
 async def get_rover_faults(
     rover_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Return active diagnostic faults for the specified rover."""
+    """
+    Return active diagnostic faults for the specified rover.
+    Enforces rover organization ownership before returning diagnostics (KN-11).
+    """
+    stmt = select(Rover).where(
+        and_(
+            Rover.id == rover_id,
+            Rover.organization_id == current_user.organization_id,
+        )
+    )
+    rover = (await db.execute(stmt)).scalar_one_or_none()
+    if not rover:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rover {rover_id} not found in your organization.",
+        )
+
     return {
-        "rover_id": rover_id,
+        "rover_id": rover.id,
         "active_faults": [],
         "safety_interlock_active": True,
-        "message": "All diagnostic health parameters nominal.",
+        "hardware_status": rover.status.value,
+        "message": "All diagnostic health parameters nominal. Hardware interlock active.",
     }
