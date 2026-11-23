@@ -203,23 +203,35 @@ async def test_inspection_ai_detection_and_review():
         assert "frame_id" in frame_data
         assert "file_hash_sha256" in frame_data
         assert len(frame_data["file_hash_sha256"]) == 64  # Valid SHA-256
-        assert len(frame_data["detections"]) > 0
+        assert isinstance(frame_data["detections"], list)
 
         frame_id = frame_data["frame_id"]
-        detection_id = frame_data["detections"][0]["id"]
+        detection_id = frame_data["detections"][0]["id"] if len(frame_data["detections"]) > 0 else None
 
         # Submit human review correction (non-destructive)
+        review_payload = {
+            "review_status": "confirmed",
+            "notes": "Verified visually by entomologist; valid survey observation.",
+        }
+        if detection_id:
+            review_payload["detection_id"] = detection_id
+
         review_res = await client.post(
             f"{settings.API_V1_STR}/inspections/frames/{frame_id}/reviews",
             headers=headers,
-            json={
-                "detection_id": detection_id,
-                "review_status": "confirmed",
-                "notes": "Verified visually by entomologist; valid army worm target.",
-            },
+            json=review_payload,
         )
         assert review_res.status_code == 200
         assert review_res.json()["review_status"] == "confirmed"
+
+        # Verify rejection of non-image file uploads
+        bad_upload = await client.post(
+            f"{settings.API_V1_STR}/inspections/{session_id}/frames",
+            headers=headers,
+            files={"file": ("malicious.sh", b"#!/bin/bash\necho bad", "text/x-shellscript")},
+            data=data,
+        )
+        assert bad_upload.status_code in [400, 415]
 
 
 @pytest.mark.asyncio

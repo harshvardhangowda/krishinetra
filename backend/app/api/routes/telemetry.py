@@ -3,7 +3,7 @@ KrishiNetra Backend - Telemetry & Diagnostics Routes
 File: backend/app/api/routes/telemetry.py
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_db
 from backend.app.domains.auth_service import get_current_user
 from backend.app.infrastructure.db.models import Rover, User, utcnow
+
+try:
+    from src.sensors.sensor_manager import SafeSensorManager
+    sensor_mgr = SafeSensorManager()
+except ImportError:
+    sensor_mgr = None
 
 router = APIRouter(prefix="/rovers", tags=["Rover Telemetry & Diagnostics"])
 
@@ -21,21 +27,31 @@ async def get_latest_telemetry(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return latest authenticated telemetry sample for the specified rover."""
+    """
+    Return latest authenticated telemetry sample for the specified rover.
+    Reports honest sensor connection quality and flags simulated vs disconnected channels.
+    """
     stmt = select(Rover).where(Rover.id == rover_id, Rover.organization_id == current_user.organization_id)
     rover = (await db.execute(stmt)).scalar_one_or_none()
     if not rover:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rover not found.")
 
+    # Honest sensor collection: poll sensor HAL if available
+    sensor_readings = []
+    if sensor_mgr:
+        sensor_readings = [r.to_dict() for r in sensor_mgr.poll_all_sensors()]
+
     return {
         "rover_id": rover.id,
+        "organization_id": rover.organization_id,
         "timestamp": utcnow().isoformat(),
         "battery_pct": rover.battery_pct,
-        "temperature_c": 27.2,
-        "humidity_pct": 58.0,
-        "ultrasonic_distance_m": 0.85,
-        "current_state": rover.status.value,
-        "gps_coords": {"lat": 12.9716, "lng": 77.5946},
+        "hardware_status": rover.status.value,
+        "is_physical_hardware": False,  # Truthful reporting: running in simulation/desktop mode
+        "sensors": sensor_readings,
+        "ultrasonic_distance_m": None,  # Explicitly None when physical ultrasonic is not connected
+        "gps_coords": None,              # Explicitly None when physical GPS module is not connected
+        "disclaimer": "Operating in safe simulation mode. Physical sensors/actuators not attached.",
     }
 
 

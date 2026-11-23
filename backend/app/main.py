@@ -22,45 +22,6 @@ from backend.app.core.security import hash_password
 from backend.app.api.v1.router import api_v1_router
 
 
-async def seed_initial_data() -> None:
-    """Bootstrap default organization, admin owner user, and simulated rover if empty."""
-    async with AsyncSessionLocal() as db:
-        # Check if any org exists
-        res = await db.execute(text("SELECT COUNT(*) FROM organizations"))
-        count = res.scalar() or 0
-        if count == 0:
-            org = Organization(
-                name="KrishiNetra Agro Labs",
-                slug="krishinetra-labs",
-            )
-            db.add(org)
-            await db.flush()
-
-            # Create default owner user
-            owner = User(
-                organization_id=org.id,
-                email="admin@krishinetra.ai",
-                username="admin",
-                full_name="Harshvardhan Gowda",
-                hashed_password=hash_password("KrishiNetra@2026"),
-                role=UserRole.OWNER,
-            )
-            db.add(owner)
-
-            # Create initial simulated rover
-            rover = Rover(
-                organization_id=org.id,
-                name="KrishiNetra Autonomous Rover 01",
-                serial_number="KNR-ALPHA-001",
-                hardware_version="v1.0-sim",
-                firmware_version="v1.0.0",
-                status=RoverStatus.IDLE,
-            )
-            db.add(rover)
-            await db.commit()
-            print("[Backend] Initialized default tenant: 'KrishiNetra Agro Labs' and admin user.")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and graceful shutdown lifecycle."""
@@ -68,8 +29,6 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed initial test/demo tenant
-    await seed_initial_data()
     yield
 
     # Teardown database pool

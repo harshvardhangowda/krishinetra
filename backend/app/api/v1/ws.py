@@ -6,10 +6,10 @@ File: backend/app/api/v1/ws.py
 import asyncio
 from typing import Dict, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import select
+from sqlalchemy import select, and_
 
 from backend.app.core.database import AsyncSessionLocal
-from backend.app.infrastructure.db.models import Session, User, utcnow
+from backend.app.infrastructure.db.models import Session, Rover, utcnow
 
 router = APIRouter(tags=["Real-time Telemetry"])
 
@@ -47,13 +47,27 @@ async def rover_telemetry_ws(websocket: WebSocket, rover_id: str, token: str):
     """
     Authenticated WebSocket endpoint for real-time rover telemetry,
     heartbeats, and detection notifications.
+    Enforces token validity and organization-scoped rover ownership.
     """
-    # 1. Validate session token
+    # 1. Validate session token and rover organization authorization
     async with AsyncSessionLocal() as db:
         stmt = select(Session).where(Session.session_token == token)
         res = await db.execute(stmt)
         session = res.scalar_one_or_none()
         if not session or utcnow() > session.expires_at:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # 2. Verify that the requested rover belongs to user's organization
+        rover_stmt = select(Rover).where(
+            and_(
+                Rover.id == rover_id,
+                Rover.organization_id == session.organization_id,
+            )
+        )
+        rover_res = await db.execute(rover_stmt)
+        rover = rover_res.scalar_one_or_none()
+        if not rover:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 

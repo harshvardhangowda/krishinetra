@@ -8,7 +8,6 @@ from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from backend.app.infrastructure.db.models import (
     InspectionSession,
@@ -91,7 +90,7 @@ async def ingest_frame_and_run_detection(
     db.add(frame)
     await db.flush()
 
-    # 3. Run AI inference
+    # 3. Run AI inference truthfully (raises on model failure, never fabricates)
     raw_detections = ai_detector.predict(image_bytes)
     detection_entities = []
 
@@ -133,8 +132,42 @@ async def submit_human_review(
 ) -> HumanReview:
     """
     Submits a human review record without modifying the raw AI prediction.
-    Preserves raw ML data for retraining and false-positive tracking.
+    Strictly verifies organization ownership of the frame and detection.
     """
+    # 1. Verify frame exists and belongs to user's organization
+    stmt = (
+        select(InspectionFrame)
+        .join(InspectionSession, InspectionFrame.session_id == InspectionSession.id)
+        .where(
+            and_(
+                InspectionFrame.id == frame_id,
+                InspectionSession.organization_id == user.organization_id,
+            )
+        )
+    )
+    res = await db.execute(stmt)
+    frame = res.scalar_one_or_none()
+    if not frame:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Inspection frame not found in your organization.",
+        )
+
+    # 2. If detection_id is provided, verify it belongs to this frame
+    if detection_id:
+        det_stmt = select(Detection).where(
+            and_(
+                Detection.id == detection_id,
+                Detection.frame_id == frame_id,
+            )
+        )
+        det_res = await db.execute(det_stmt)
+        if not det_res.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Detection {detection_id} does not belong to frame {frame_id}.",
+            )
+
     review = HumanReview(
         frame_id=frame_id,
         detection_id=detection_id,

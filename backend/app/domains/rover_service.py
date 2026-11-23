@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import json
 from typing import Optional, List
 from fastapi import HTTPException, status
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
@@ -34,6 +34,7 @@ async def acquire_control_lease(
     """
     Acquire exclusive, time-bounded control lease over a rover.
     Guarantees only ONE operator can drive/steer at any given time.
+    Atomic expiration and exclusivity mechanisms enforced at the database level.
     """
     # 1. Verify rover exists and belongs to user's organization
     stmt = select(Rover).where(
@@ -50,7 +51,20 @@ async def acquire_control_lease(
     now = utcnow()
     expires = now + timedelta(seconds=ttl_seconds)
 
-    # 2. Check for active unexpired lease
+    # 2. Deactivate any expired leases for this rover in the database
+    await db.execute(
+        update(RoverControlLease)
+        .where(
+            and_(
+                RoverControlLease.rover_id == rover_id,
+                RoverControlLease.is_active.is_(True),
+                RoverControlLease.expires_at <= now,
+            )
+        )
+        .values(is_active=False)
+    )
+
+    # 3. Check for active unexpired lease
     lease_stmt = select(RoverControlLease).where(
         and_(
             RoverControlLease.rover_id == rover_id,
@@ -75,7 +89,18 @@ async def acquire_control_lease(
                 detail=f"Rover is currently leased to another operator (expires at {existing_lease.expires_at.isoformat()}).",
             )
 
-    # 3. Create fresh lease
+    # 4. Deactivate any prior leases before inserting the new exclusive active lease
+    await db.execute(
+        update(RoverControlLease)
+        .where(
+            and_(
+                RoverControlLease.rover_id == rover_id,
+                RoverControlLease.is_active.is_(True),
+            )
+        )
+        .values(is_active=False)
+    )
+
     new_lease = RoverControlLease(
         rover_id=rover_id,
         user_id=user.id,
@@ -114,16 +139,10 @@ async def dispatch_rover_command(
 ) -> RoverCommand:
     """
     Dispatch rover movement or actuation command with strict lease enforcement,
-    idempotency protection, and non-bypassable emergency STOP override.
+    rover authorization BEFORE idempotency lookup, and non-bypassable emergency STOP override.
     """
-    # 1. Idempotency Check: if already processed, return existing command record
-    idem_stmt = select(RoverCommand).where(RoverCommand.idempotency_key == idempotency_key)
-    idem_res = await db.execute(idem_stmt)
-    existing_cmd = idem_res.scalar_one_or_none()
-    if existing_cmd:
-        return existing_cmd
-
-    # 2. Check Rover ownership
+    # 1. Check Rover ownership within user's organization FIRST
+    # (Prevents information disclosure of other users' commands via idempotency probing)
     r_stmt = select(Rover).where(
         and_(Rover.id == rover_id, Rover.organization_id == user.organization_id)
     )
@@ -134,6 +153,18 @@ async def dispatch_rover_command(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Rover not found in your organization.",
         )
+
+    # 2. Idempotency Check scoped to this verified rover
+    idem_stmt = select(RoverCommand).where(
+        and_(
+            RoverCommand.rover_id == rover_id,
+            RoverCommand.idempotency_key == idempotency_key,
+        )
+    )
+    idem_res = await db.execute(idem_stmt)
+    existing_cmd = idem_res.scalar_one_or_none()
+    if existing_cmd:
+        return existing_cmd
 
     now = utcnow()
     cmd_type_upper = command_type.upper()
@@ -158,7 +189,7 @@ async def dispatch_rover_command(
                 detail="Active control lease required to dispatch commands to this rover. Please acquire lease first.",
             )
 
-    # 4. Record Command as PENDING
+    # 4. Record Command as SENT
     cmd = RoverCommand(
         rover_id=rover_id,
         lease_id=active_lease.id if active_lease else None,
@@ -172,7 +203,7 @@ async def dispatch_rover_command(
     db.add(cmd)
     await db.flush()
 
-    # 5. Execute via safe firmware / simulation adapter
+    # 5. Execute via safe firmware / simulation adapter (fail-closed)
     success, message, resp_data = await command_adapter.execute_command(
         command_type=cmd_type_upper,
         payload=payload,

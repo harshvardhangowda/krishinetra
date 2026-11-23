@@ -7,7 +7,6 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from backend.app.core.database import get_db
 from backend.app.infrastructure.db.models import (
@@ -33,6 +32,8 @@ from backend.app.domains.inspection_service import (
 )
 
 router = APIRouter(prefix="/inspections", tags=["Inspections & AI Evidence"])
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB limit
 
 
 @router.post("", response_model=InspectionSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -76,10 +77,42 @@ async def upload_frame(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Ingests an inspection frame, computes standard SHA-256 integrity hash,
-    runs the YOLOv8 model, and stores immutable detection records.
+    Ingests an inspection frame, enforces upload size limits, validates image headers,
+    computes standard SHA-256 integrity hash, runs the YOLOv8 model, and stores immutable detection records.
     """
-    image_bytes = await file.read()
+    CHUNK_SIZE = 64 * 1024
+    total_bytes = 0
+    chunks = []
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        if total_bytes > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Uploaded image exceeds maximum allowable limit of 10MB.",
+            )
+        chunks.append(chunk)
+
+    image_bytes = b"".join(chunks)
+    if len(image_bytes) < 4:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty or corrupted.",
+        )
+
+    # Magic byte validation for supported image formats: JPEG, PNG, WebP
+    is_jpeg = image_bytes.startswith(b"\xff\xd8\xff")
+    is_png = image_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    is_webp = len(image_bytes) >= 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP"
+
+    if not (is_jpeg or is_png or is_webp):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Invalid image format. Only JPEG, PNG, and WebP images are permitted for inspection frames.",
+        )
+
     frame, detections = await ingest_frame_and_run_detection(
         db=db,
         session_id=session_id,

@@ -37,41 +37,55 @@ class AIDetectorAdapter:
     def predict(self, image_input: Any) -> List[Dict[str, Any]]:
         """
         Run inference and return standard detection dictionary.
-        Returns list of {class_id, class_name, confidence, bbox: [xc, yc, w, h]}
+        Returns list of {class_id, class_name, confidence, bbox_xc, bbox_yc, bbox_w, bbox_h, is_target_pest}
+        Truthful fail-closed behavior: raises on failure, never fabricates fake detections.
         """
-        if self.detector is not None:
-            try:
-                results = self.detector.predict(image_input)
-                detections = []
-                for det in results.get("detections", []):
-                    bbox = det.get("bbox", [0.5, 0.5, 0.1, 0.1])
-                    detections.append({
-                        "class_id": det.get("class_id", 0),
-                        "class_name": det.get("class_name", "pest"),
-                        "confidence": float(det.get("confidence", 0.85)),
-                        "bbox_xc": float(bbox[0]),
-                        "bbox_yc": float(bbox[1]),
-                        "bbox_w": float(bbox[2]),
-                        "bbox_h": float(bbox[3]),
-                        "is_target_pest": True,
-                    })
-                return detections
-            except Exception as e:
-                print(f"[AIDetectorAdapter] Inference fallback on error: {e}")
+        if self.detector is None:
+            raise RuntimeError("Pest detection model is not loaded. Model weights missing or invalid.")
 
-        # Deterministic simulation fallback when model not loaded in environment
-        return [
-            {
-                "class_id": 0,
-                "class_name": "army worm",
-                "confidence": 0.88,
-                "bbox_xc": 0.45,
-                "bbox_yc": 0.52,
-                "bbox_w": 0.15,
-                "bbox_h": 0.18,
-                "is_target_pest": True,
-            }
-        ]
+        try:
+            if isinstance(image_input, bytes):
+                import cv2
+                import numpy as np
+                nparr = np.frombuffer(image_input, np.uint8)
+                source = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                if source is None:
+                    raise ValueError("Failed to decode image bytes with OpenCV.")
+                height, width = source.shape[:2]
+            else:
+                source = image_input
+                height, width = 640, 640
+
+            results = self.detector.detect(source)
+            detections = []
+            for det in results:
+                bbox = det.get("bbox", [0, 0, 10, 10])
+                x1, y1, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
+                w = max(1.0, float(x2 - x1))
+                h = max(1.0, float(y2 - y1))
+                xc = float(x1) + w / 2.0
+                yc = float(y1) + h / 2.0
+
+                # Normalized coordinates (0.0 to 1.0)
+                norm_xc = min(1.0, max(0.0, xc / max(1, width)))
+                norm_yc = min(1.0, max(0.0, yc / max(1, height)))
+                norm_w = min(1.0, max(0.0, w / max(1, width)))
+                norm_h = min(1.0, max(0.0, h / max(1, height)))
+
+                detections.append({
+                    "class_id": det.get("class_id", 0),
+                    "class_name": det.get("class_name", "pest"),
+                    "confidence": float(det.get("confidence", 0.0)),
+                    "bbox_xc": norm_xc,
+                    "bbox_yc": norm_yc,
+                    "bbox_w": norm_w,
+                    "bbox_h": norm_h,
+                    "is_target_pest": True,
+                })
+            return detections
+        except Exception as e:
+            print(f"[AIDetectorAdapter] Inference failed: {e}")
+            raise RuntimeError(f"YOLO inference failed: {str(e)}") from e
 
 
 ai_detector = AIDetectorAdapter()
