@@ -79,13 +79,42 @@ def train_pest_detector(
     print("\n[Evaluation] Validating model on test split...")
     val_metrics = model.val(data=str(data_path), split="test", project=str(PROJECT_ROOT / project_dir), name=f"{name}_val")
 
+    # Export best model to ONNX
+    print("\n[Export] Exporting trained model to ONNX format...")
+    dest_best_onnx = models_dir / "pest_yolov8n_best.onnx"
+    try:
+        exported_onnx = model.export(format="onnx", imgsz=imgsz, dynamic=False)
+        if exported_onnx and Path(exported_onnx).exists():
+            shutil.copy2(exported_onnx, dest_best_onnx)
+            print(f"[Export] ONNX model successfully saved to: {dest_best_onnx}")
+    except Exception as e:
+        print(f"[Export Warning] ONNX export failed: {e}")
+
+    metrics_dict = {
+        "precision": round(float(val_metrics.results_dict.get("metrics/precision(B)", 0.0)), 4),
+        "recall": round(float(val_metrics.results_dict.get("metrics/recall(B)", 0.0)), 4),
+        "mAP50": round(float(val_metrics.results_dict.get("metrics/mAP50(B)", 0.0)), 4),
+        "mAP50_95": round(float(val_metrics.results_dict.get("metrics/mAP50-95(B)", 0.0)), 4),
+        "epochs": epochs,
+        "batch": batch,
+        "imgsz": imgsz,
+        "classes": {0: "army worm", 1: "blister beetle", 2: "corn borer"},
+        "weights_pt": str(dest_best_pt),
+        "weights_onnx": str(dest_best_onnx),
+    }
+
+    reports_dir = PROJECT_ROOT / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    with open(reports_dir / "training_metrics.json", "w", encoding="utf-8") as f:
+        json.dump(metrics_dict, f, indent=2)
+
     print("\n" + "=" * 65)
     print("TRAINING & VALIDATION SUMMARY")
     print("=" * 65)
-    print(f"Precision (P)    : {val_metrics.results_dict.get('metrics/precision(B)', 0.0):.4f}")
-    print(f"Recall (R)       : {val_metrics.results_dict.get('metrics/recall(B)', 0.0):.4f}")
-    print(f"mAP@50           : {val_metrics.results_dict.get('metrics/mAP50(B)', 0.0):.4f}")
-    print(f"mAP@50-95        : {val_metrics.results_dict.get('metrics/mAP50-95(B)', 0.0):.4f}")
+    print(f"Precision (P)    : {metrics_dict['precision']:.4f}")
+    print(f"Recall (R)       : {metrics_dict['recall']:.4f}")
+    print(f"mAP@50           : {metrics_dict['mAP50']:.4f}")
+    print(f"mAP@50-95        : {metrics_dict['mAP50_95']:.4f}")
     print(f"Artifacts Path   : {exp_dir}")
     print("=" * 65 + "\n")
 
@@ -94,9 +123,9 @@ def train_pest_detector(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train 3-Class Pest YOLO Model")
-    parser.add_argument("--epochs", type=int, default=30, help="Number of training epochs")
-    parser.add_argument("--batch", type=int, default=8, help="Batch size")
-    parser.add_argument("--imgsz", type=int, default=640, help="Image size")
+    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs (default: 5)")
+    parser.add_argument("--batch", type=int, default=16, help="Batch size (default: 16)")
+    parser.add_argument("--imgsz", type=int, default=640, help="Image size (default: 640)")
     parser.add_argument("--device", type=str, default="cpu", help="Device ('cpu' or '0')")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()

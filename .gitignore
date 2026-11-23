@@ -32,6 +32,7 @@ runs/
 *.pt
 *.onnx
 *.engine
+*.bak
 !models/pest_yolov8n_best.pt
 !models/pest_yolov8n_best.onnx
 
@@ -41,6 +42,8 @@ datasets/raw/
 datasets/raw_ip102/
 datasets/raw_ip102_probe/
 datasets/processed/
+datasets/synthetic_backup/
+datasets/*.json
 *.part
 *.tar
 *.tar.gz

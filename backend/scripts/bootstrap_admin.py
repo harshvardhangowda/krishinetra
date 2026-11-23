@@ -102,6 +102,8 @@ async def bootstrap_admin(
         print(f"[Bootstrap] Successfully created administrator account '{username}' ({email}) with role 'owner'.")
         print("[Bootstrap] Ready for production authentication.")
 
+    await engine.dispose()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Bootstrap KrishiNetra Organization & Administrator Account")

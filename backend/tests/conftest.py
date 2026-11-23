@@ -14,6 +14,7 @@ from backend.app.core.security import hash_password
 async def initialize_test_database():
     """Ensure database schema is created and isolated test tenant populated per test function."""
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as db:
