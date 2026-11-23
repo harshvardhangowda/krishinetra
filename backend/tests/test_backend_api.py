@@ -220,3 +220,92 @@ async def test_inspection_ai_detection_and_review():
         )
         assert review_res.status_code == 200
         assert review_res.json()["review_status"] == "confirmed"
+
+
+@pytest.mark.asyncio
+async def test_system_and_telemetry():
+    """Verify system capabilities, status reporting, and rover telemetry endpoints."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Capabilities (unauthenticated)
+        cap_res = await client.get(f"{settings.API_V1_STR}/system/capabilities")
+        assert cap_res.status_code == 200
+        assert cap_res.json()["actuation"]["physical_hardware_actuators"] == "PERMANENTLY_DISABLED"
+
+        # Authenticate
+        login_res = await client.post(
+            f"{settings.API_V1_STR}/auth/login",
+            json={"username_or_email": "admin", "password": "KrishiNetra@2026"},
+        )
+        headers = {"Authorization": f"Bearer {login_res.json()['session_token']}"}
+
+        # Status
+        status_res = await client.get(f"{settings.API_V1_STR}/system/status", headers=headers)
+        assert status_res.status_code == 200
+        assert status_res.json()["safety_interlock"] == "HARDWARE_ACTUATION_LOCKED"
+
+        # Get rover ID
+        rovers = (await client.get(f"{settings.API_V1_STR}/rovers", headers=headers)).json()
+        rover_id = rovers[0]["id"]
+
+        # Telemetry latest
+        telem_res = await client.get(f"{settings.API_V1_STR}/rovers/{rover_id}/telemetry/latest", headers=headers)
+        assert telem_res.status_code == 200
+        assert "battery_pct" in telem_res.json()
+
+        # Faults
+        faults_res = await client.get(f"{settings.API_V1_STR}/rovers/{rover_id}/faults", headers=headers)
+        assert faults_res.status_code == 200
+        assert faults_res.json()["safety_interlock_active"] is True
+
+
+@pytest.mark.asyncio
+async def test_treatment_workflow_and_assistant():
+    """Verify safe treatment requests, dataset/model listing, and read-only AI assistant."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        login_res = await client.post(
+            f"{settings.API_V1_STR}/auth/login",
+            json={"username_or_email": "admin", "password": "KrishiNetra@2026"},
+        )
+        headers = {"Authorization": f"Bearer {login_res.json()['session_token']}"}
+
+        rovers = (await client.get(f"{settings.API_V1_STR}/rovers", headers=headers)).json()
+        rover_id = rovers[0]["id"]
+
+        # 1. Treatment profiles
+        profiles_res = await client.get(f"{settings.API_V1_STR}/treatments/profiles", headers=headers)
+        assert profiles_res.status_code == 200
+        assert len(profiles_res.json()) >= 2
+
+        # 2. Treatment request (Simulation only)
+        treat_res = await client.post(
+            f"{settings.API_V1_STR}/treatments/requests",
+            headers=headers,
+            json={
+                "rover_id": rover_id,
+                "target_pest": "army worm",
+                "treatment_type": "SWEPT_PULSE_US",
+            },
+        )
+        assert treat_res.status_code == 201
+        assert treat_res.json()["actuation_executed"] is False
+
+        # 3. Datasets & Models
+        ds_res = await client.get(f"{settings.API_V1_STR}/datasets", headers=headers)
+        assert ds_res.status_code == 200
+        assert len(ds_res.json()) > 0
+
+        models_res = await client.get(f"{settings.API_V1_STR}/models", headers=headers)
+        assert models_res.status_code == 200
+        assert len(models_res.json()) > 0
+
+        # 4. Read-only AI Assistant with evidence citations
+        assistant_res = await client.post(
+            f"{settings.API_V1_STR}/assistant/query",
+            headers=headers,
+            json={"query": "What is the status of pest observations and rovers?"},
+        )
+        assert assistant_res.status_code == 200
+        ans = assistant_res.json()
+        assert "evidence_citations" in ans
+        assert len(ans["evidence_citations"]) >= 3
+        assert "read-only" in ans["safety_disclaimer"].lower()
