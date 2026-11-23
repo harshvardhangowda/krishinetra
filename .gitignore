@@ -55,6 +55,10 @@ practical.py
 *.db
 *.sqlite3
 data/
+logs/*.csv
+logs/*.jsonl
+!logs/test_comm_logs/
+!logs/test_hil_logs/
 
 # IDE & Editor
 .vscode/

@@ -78,12 +78,23 @@ class DashboardDataSource:
     def get_system_status(self) -> Dict[str, Any]:
         """Return system connection and readiness telemetry."""
         models = self.get_available_models()
+
+        # Dynamically compute AI detector readiness instead of hardcoding
+        if models["both_available"]:
+            ai_status = "READY (PyTorch & ONNX Models Available)"
+        elif models["pytorch_available"]:
+            ai_status = "READY (PyTorch pest_yolov8n_best.pt Available)"
+        elif models["onnx_available"]:
+            ai_status = "READY (ONNX pest_yolov8n_best.onnx Available)"
+        else:
+            ai_status = "UNAVAILABLE (No Model Weights in models/)"
+
         return {
             "postgres_connected": self.db_connected,
             "host": f"{self.host}:{self.port}" if self.db_connected else "Offline (Local Logs Active)",
             "database": self.dbname if self.db_connected else "N/A",
             "local_logging": "ACTIVE",
-            "ai_detector": "READY (3-Class Pest Model: pest_yolov8n_best.pt)",
+            "ai_detector": ai_status,
             "models_available": models,
             "decision_engine": "NO_ACTION (Safety Interlock Engaged)",
             "actuators": "DISABLED",

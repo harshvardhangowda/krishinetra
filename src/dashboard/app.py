@@ -14,6 +14,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import cv2
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go

@@ -59,6 +59,7 @@ class SafeVideoStream:
         self.loop = loop
         self.allow_camera = allow_camera
         self.fallback_synthetic = fallback_synthetic
+        self.is_fallback_active = False
 
         self.cap: Optional[cv2.VideoCapture] = None
         self.injected_frames: List[np.ndarray] = injected_frames or []
@@ -95,6 +96,7 @@ class SafeVideoStream:
                 err_msg = f"Video file not found: {file_path}"
                 if self.fallback_synthetic:
                     print(f"[SafeVideoStream] Warning: {err_msg}. Activating synthetic fallback.")
+                    self.is_fallback_active = True
                     self.source_type = StreamSourceType.SYNTHETIC
                     self.status = StreamStatus.ACTIVE
                     return
@@ -178,6 +180,7 @@ class SafeVideoStream:
             "timestamp": now,
             "source_type": self.source_type.value,
             "is_synthetic": self.source_type == StreamSourceType.SYNTHETIC,
+            "is_fallback": self.is_fallback_active,
             "is_eos": False,
             "fps_target": self.fps_target,
             "status": self.status.value,
