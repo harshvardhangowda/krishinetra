@@ -80,6 +80,14 @@ class AIDetectorAdapter:
                     "bbox_yc": norm_yc,
                     "bbox_w": norm_w,
                     "bbox_h": norm_h,
+                    "box_pixels": {
+                        "x1": round(float(x1), 2),
+                        "y1": round(float(y1), 2),
+                        "x2": round(float(x2), 2),
+                        "y2": round(float(y2), 2),
+                    },
+                    "image_width": int(width),
+                    "image_height": int(height),
                     "is_target_pest": True,
                 })
             return detections

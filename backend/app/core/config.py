@@ -35,12 +35,22 @@ class Settings(BaseSettings):
     # Media Evidence Storage
     MEDIA_STORAGE_PATH: str = str(PROJECT_ROOT / "data" / "media_evidence")
 
-    # CORS
+    # CORS - Explicit allowlist for trusted origins (no wildcard permitted)
     BACKEND_CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
+        "http://localhost:3000",  # React / Next frontend
         "http://localhost:8501",  # Streamlit dashboard
-        "http://localhost:8000",
+        "http://localhost:8000",  # FastAPI swagger/docs
+        "http://localhost:5500",  # VS Code Live Server
+        "http://127.0.0.1:5500",  # VS Code Live Server (IP alias)
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:5173",  # Vite dev server (IP alias)
+        "http://localhost:8080",  # Local http-server
+        "http://127.0.0.1:8080",  # Local http-server (IP alias)
     ]
+
+    # Frontend Prediction API Configuration
+    ALLOW_DEMO_PREDICTION: bool = True
+    PREDICTION_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 MB strict limit
 
     model_config = SettingsConfigDict(
         env_file=".env",

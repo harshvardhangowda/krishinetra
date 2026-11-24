@@ -12,6 +12,7 @@ from backend.app.core.config import settings
 from backend.app.core.database import engine, AsyncSessionLocal
 from backend.app.infrastructure.db.base import Base
 from backend.app.api.v1.router import api_v1_router
+from backend.app.api.v1.predict import router as predict_router
 
 
 @asynccontextmanager
@@ -47,6 +48,9 @@ app.add_middleware(
 
 # Mount versioned API routes
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+
+# Optional convenience alias for POST /api/predict alongside POST /api/v1/predict
+app.include_router(predict_router, prefix="/api", include_in_schema=False)
 
 
 @app.get("/", tags=["Root"])

@@ -157,6 +157,72 @@ async def get_current_user(
     return auth_data[0]
 
 
+async def get_optional_current_user(
+    bearer: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
+    token_header: Optional[str] = Security(api_key_header),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[User]:
+    """
+    Extracts and validates session token if credentials are supplied.
+
+    Security & Demo Strategy:
+    1. If a token is provided (via Bearer header or X-Session-Token), it is strictly validated.
+       If invalid or expired, raises HTTP 401 Unauthorized.
+    2. If NO credentials are provided:
+       - If settings.ALLOW_DEMO_PREDICTION is True: returns None to permit ephemeral, read-only demo evaluation.
+       - If settings.ALLOW_DEMO_PREDICTION is False: raises HTTP 401 Unauthorized.
+    """
+    token = None
+    if bearer and bearer.credentials:
+        token = bearer.credentials
+    elif token_header:
+        token = token_header
+
+    if not token:
+        if settings.ALLOW_DEMO_PREDICTION:
+            return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Provide valid Bearer or X-Session-Token header.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    stmt = (
+        select(Session)
+        .where(Session.session_token == token)
+        .options(selectinload(Session.user).selectinload(User.organization))
+    )
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session token.",
+        )
+
+    now_utc = utcnow()
+    expires_at = session.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if now_utc > expires_at:
+        await db.delete(session)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has expired. Please re-authenticate.",
+        )
+
+    if not session.user or not session.user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is deactivated.",
+        )
+
+    return session.user
+
+
 def require_roles(allowed_roles: List[UserRole]) -> Callable:
     """Enforce strict Role-Based Access Control (RBAC)."""
     async def role_checker(

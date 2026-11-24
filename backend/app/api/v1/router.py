@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from backend.app.api.v1.auth import router as auth_router
 from backend.app.api.v1.rovers import router as rovers_router
 from backend.app.api.v1.inspections import router as inspections_router
+from backend.app.api.v1.predict import router as predict_router
 from backend.app.api.v1.ws import router as ws_router
 from backend.app.api.routes.system import router as system_router
 from backend.app.api.routes.telemetry import router as telemetry_router
@@ -34,6 +35,9 @@ api_v1_router.include_router(control_router)
 
 # Inspections, Frames & AI Detections
 api_v1_router.include_router(inspections_router)
+
+# Frontend Pest Prediction API (YOLO + Knowledge Base + Heuristics)
+api_v1_router.include_router(predict_router)
 
 # Treatment Requests & Bioassay Profiles
 api_v1_router.include_router(treatments_router)
